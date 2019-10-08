@@ -1,111 +1,116 @@
-use crate::client::{RawKV, ResulT};
+use crate::client::{ConsulKV, RawKV, ResulT};
 use itertools::Itertools;
+use serde::Serialize;
+use std::cmp::Eq;
+use std::collections::hash_map::Entry;
+use std::collections::HashMap;
+use std::fs::File;
+use std::path::Path;
 
-#[derive(Clone, Debug)]
-pub struct Location {
-    ns: Vec<String>
+
+#[derive(Eq, PartialEq, Hash, Debug)]
+pub enum Key {
+    KeyValue(String),
+    Directory(String),
 }
 
-impl Location {
-    fn path(&self) -> String {
-        self.ns.join("/")
-    }
-
-    fn name(&self) -> String {
-        self.ns.last().get_or_insert(&String::from(".")).clone()
-    }
-
-    fn base(&self) -> Location {
-        match self.ns.first() {
-            None => Location { ns: vec!() },
-            Some(head)  => Location { ns: vec!(head.clone()) }
+impl Key {
+    pub fn key(&self) -> String {
+        match self {
+            Key::KeyValue(k) => k.clone(),
+            Key::Directory(k) => k.clone()
         }
     }
-
-    fn drop_base_mut(&mut self) -> &Location {
-        self.ns.remove(0); self
-    }
 }
 
-impl PartialEq for Location {
-    fn eq(&self, other: &Location) -> bool {
-        self.ns == other.ns
-    }
-}
-
-#[derive(Clone, Debug)]
+#[derive(Eq, PartialEq, Debug)]
 pub enum Node {
-    KeyValue { path: Location, name: String, value: String },
-    Directory { path: Location, nodes: Vec<Node> }
+    KeyValue {
+        key: String,
+        value: String,
+    },
+    Directory {
+        key: String,
+        nodes: HashMap<Key, Node>,
+    },
 }
 
 impl Node {
-    pub fn new(r1: Vec<RawKV>) -> ResulT<Vec<Node>> {
-        let raws = Node::preprocess(r1)?;
-        Ok(Node::process(raws))
-    }
-
-    fn preprocess(raw_kvs: Vec<RawKV>) -> ResulT<Vec<Node>> {
-        let nodes = raw_kvs.into_iter().map(|rkv| {
-            let path: Vec<String> = rkv.key.split("/").map(|s| s.to_string()).collect();
-            let name = path.last().ok_or("Can't construct a node")?;
-            let loc = Location { ns: path.clone() };
-            if !rkv.key.ends_with("/") && !rkv.value.is_empty() {
-                let n = Node::KeyValue { path: loc, name: name.clone(), value: rkv.value.clone() };
-                Ok(n)
-            } else {
-                let dir = Node::Directory { path: loc, nodes: vec!() };
-                Ok(dir)
+    fn insert_key(nodes: &mut HashMap<Key, Node>, key: String, value: String) {
+        match nodes.entry(Key::KeyValue(key.clone())) {
+            Entry::Occupied(mut state) => {
+                state.insert(Node::KeyValue {
+                    key: key,
+                    value: value,
+                });
             }
-        });
-        nodes.collect()
-    }
-
-    fn process(mut nodes: Vec<Node>) -> Vec<Node> {
-        let grouped = nodes.iter_mut().group_by(|n| n.path().base());
-        grouped.into_iter().map (|(key, group)| {
-                let (leafs, dirs): (Vec<&Node>, Vec<&Node>) = 
-                    group.into_iter().map(|n| n.drop_base_mut()).partition(|n| n.path().ns.is_empty());
-
-                let lfs: Vec<&Node> = leafs.into_iter().filter(|n| match n {
-                    Node::Directory{nodes, ..} => !nodes.is_empty(),
-                    _ => true
-                }).collect();
-                let mut n1: Vec<Node> = lfs.into_iter().map(move |x| x.clone()).collect();
-                let nodes = if dirs.is_empty() {
-                        n1
-                    } else {
-                        let dir2: Vec<Node> = dirs.into_iter().map(move |x| x.clone()).collect();
-                        let mut s = Node::process(dir2);
-                        n1.append(&mut s);
-                        n1
-                    };
-                Node::Directory { path: key, nodes: nodes }
-            }).collect::<Vec<Node>>()
-        }   
-
-        fn drop_base_mut(&mut self) -> &Node {
-            match self {
-                Node::KeyValue {path, ..}  => {
-                    path.drop_base_mut(); self
-                },
-                Node::Directory {path, ..}=> {
-                    path.drop_base_mut(); self
-                }
+            Entry::Vacant(state) => {
+                state.insert(Node::KeyValue {
+                    key: key,
+                    value: value,
+                });
             }
         }
-
-    fn path(&self) -> &Location {
+    }
+    fn branch(nodes: &mut HashMap<Key, Node>, key: String, remainder: Vec<String>, value: String) {
+        match nodes.entry(Key::Directory(key.clone())) {
+            Entry::Occupied(mut state) => {
+                // We already have a branch of that name, we just
+                // forward the call and move on
+                state.get_mut().add_value(remainder, value)
+            }
+            Entry::Vacant(state) => {
+                // We need to create the node
+                let mut node = Node::Directory {
+                    key: key,
+                    nodes: HashMap::new(),
+                };
+                let status = node.add_value(remainder, value);
+                state.insert(node);
+                status
+            }
+        };
+    }
+    pub fn get(&self, test: &Key) -> Option<&Node> {
+        println!("{:?}", &self);
         match self {
-            Node::KeyValue {path, ..}  => path,
-            Node::Directory {path, ..} => path
+            Node::Directory {
+                key: _key,
+                ref nodes,
+            } => nodes.get(test),
+            _ => None,
         }
+    }
+    pub fn add_value(&mut self, mut path: Vec<String>, value: String) {
+        (match self {
+            Node::KeyValue {
+                key: _key,
+                value: _value,
+            } => None,
+            Node::Directory {
+                key: _key,
+                ref mut nodes,
+            } => Some(nodes),
+        })
+        .map(|contents| match path.len() {
+            0 => panic!("Path cannot be empty"),
+            1 => Node::insert_key(contents, path.pop().unwrap(), value),
+            _ => Node::branch(contents, path.pop().unwrap(), path, value),
+        });
     }
 }
 
-// pub fn sample() -> Node {
-//     let path = Location{ns: vec!("t1".to_string(), "t2".to_string())};
-//     let a = Node::KeyValue { path: path.clone(), name: "hello".to_string(), value: "bye".to_string() };
-//     let dr: Node = Node::Directory {path: path.clone(), nodes: vec!(a.clone(), a.clone(), a.clone())};
-//     dr
-// }
+pub fn into_tree(collection: Vec<RawKV>) -> Node {
+    // Create the root namespace
+    println!("Creating nodes");
+    let mut root_node = Node::Directory {
+        key: "/".to_string(),
+        nodes: HashMap::new(),
+    };
+    for node in collection {
+        let mut path_elements: Vec<String> = node.key.split("/").map(|r| r.to_string()).collect();
+        path_elements.reverse();
+        root_node.add_value(path_elements, node.value);
+    }
+    root_node
+}
