@@ -1,9 +1,8 @@
 use crate::client::{RawKV, ResulT};
 use itertools::Itertools;
-use serde::Serialize;
 
 #[derive(Clone, Debug)]
-struct Location {
+pub struct Location {
     ns: Vec<String>
 }
 
@@ -24,15 +23,8 @@ impl Location {
     }
 
     fn drop_base_mut(&mut self) -> &Location {
-        self.ns.remove(0);
-        self
+        self.ns.remove(0); self
     }
-
-    // fn drop_base(&self) -> Location {
-    //     let mut ns = self.ns.clone();
-    //     ns.remove(0);
-    //     Location { ns: ns }
-    // }
 }
 
 impl PartialEq for Location {
@@ -110,3 +102,10 @@ impl Node {
         }
     }
 }
+
+// pub fn sample() -> Node {
+//     let path = Location{ns: vec!("t1".to_string(), "t2".to_string())};
+//     let a = Node::KeyValue { path: path.clone(), name: "hello".to_string(), value: "bye".to_string() };
+//     let dr: Node = Node::Directory {path: path.clone(), nodes: vec!(a.clone(), a.clone(), a.clone())};
+//     dr
+// }

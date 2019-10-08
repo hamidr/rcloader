@@ -5,8 +5,8 @@ use std::error::Error;
 
 #[derive(Deserialize)]
 pub struct ConsulKV {
-    pub Key: String,
-    pub Value: Option<String>
+    Key: String,
+    Value: Option<String>
 }
 
 pub struct RawKV {
@@ -18,8 +18,6 @@ pub type ResulT<T> = Result<T, Box<dyn Error>>;
 
 pub fn get(addr: &String, ns: &String) -> ResulT<Vec<RawKV>> {
     let url = format!("{}/v1/kv/services/{}?recurse=true", addr, ns);
-    let f = reqwest::get(&url)?.text()?;
-    println!("{:?}", f);
     let key_values: Vec<ConsulKV> =  reqwest::get(&url)?.json()?;
     key_values.into_iter().map(|kv| { decode(kv) }).collect()
 }
