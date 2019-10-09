@@ -3,6 +3,7 @@ mod node;
 mod printer;
 use node::into_tree;
 use std::env;
+use std::fs;
 
 #[cfg(test)]
 mod tests {
@@ -52,7 +53,6 @@ mod tests {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
-    println!("{:?}", args);
     if args.len() != 5 {
         println!(
 "rcloader [url=http://127.0.0.1:8500] [namespace=capi-gateway] [file=out.txt] [json|hocon] \
@@ -74,7 +74,7 @@ cargo run http://127.0.0.1:8500 test foo.txt json
     let nodes = node.get(node::Key::new("services"))
                     .and_then(|n| n.get(node::Key::new(ns.as_str())))
                     .ok_or("wtf")?;
-    let _strr = prtr.to_string(&nodes)?;
-    println!("{}", _strr);
+    let content = prtr.to_string(&nodes)?;
+    fs::write(_output, content)?;
     Ok(())
 }
