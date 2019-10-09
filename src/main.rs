@@ -32,8 +32,7 @@ mod tests {
         let tree = from_json();
         let tree = into_tree(tree);
         // println!("Tree: {:?}", tree);
-
-        let test_branch = tree.get(&Key::Directory("services".to_string()));
+        let test_branch = tree.get(Key::new("services"));
         println!("test branch: {:?}", test_branch.unwrap());
         assert!(test_branch.is_some(), true);
 
@@ -65,13 +64,17 @@ cargo run http://127.0.0.1:8500 test foo.txt json
     let url = &args[1];
     let ns = &args[2];
     let _output = &args[3];
-    let prtr = match args[4].to_lowercase().as_ref() {
-        "json" => printer::to_json,
-        "hocon" => printer::to_hocon,
+    let prtr: Box<dyn printer::Printer> = match args[4].to_lowercase().as_ref() {
+        "json" => Box::new(printer::ToJson),
+        "hocon" => Box::new(printer::ToHocon),
         _ => panic!("what?!"),
     };
     let raw_kvs = client::get(url, ns)?;
-    let nodes = into_tree(raw_kvs);
-    let _strr = prtr(&nodes);
+    let node = into_tree(raw_kvs);
+    let nodes = node.get(node::Key::new("services"))
+                    .and_then(|n| n.get(node::Key::new(ns.as_str())))
+                    .ok_or("wtf")?;
+    let _strr = prtr.to_string(&nodes)?;
+    println!("{}", _strr);
     Ok(())
 }

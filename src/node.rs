@@ -9,17 +9,15 @@ use std::path::Path;
 
 
 #[derive(Eq, PartialEq, Hash, Debug)]
-pub enum Key {
-    KeyValue(String),
-    Directory(String),
-}
+pub struct Key(String);
 
 impl Key {
-    pub fn key(&self) -> String {
-        match self {
-            Key::KeyValue(k) => k.clone(),
-            Key::Directory(k) => k.clone()
-        }
+    pub fn new(k: &str) -> Key { 
+        Key(k.to_string()) 
+    }
+
+    pub fn key(&self) -> &String {
+        &self.0
     }
 }
 
@@ -37,7 +35,7 @@ pub enum Node {
 
 impl Node {
     fn insert_key(nodes: &mut HashMap<Key, Node>, key: String, value: String) {
-        match nodes.entry(Key::KeyValue(key.clone())) {
+        match nodes.entry(Key(key.clone())) {
             Entry::Occupied(mut state) => {
                 state.insert(Node::KeyValue {
                     key: key,
@@ -53,7 +51,7 @@ impl Node {
         }
     }
     fn branch(nodes: &mut HashMap<Key, Node>, key: String, remainder: Vec<String>, value: String) {
-        match nodes.entry(Key::Directory(key.clone())) {
+        match nodes.entry(Key(key.clone())) {
             Entry::Occupied(mut state) => {
                 // We already have a branch of that name, we just
                 // forward the call and move on
@@ -71,13 +69,13 @@ impl Node {
             }
         };
     }
-    pub fn get(&self, test: &Key) -> Option<&Node> {
-        println!("{:?}", &self);
+    pub fn get(&self, test: Key) -> Option<&Node> {
+        let key = &test;
         match self {
             Node::Directory {
                 key: _key,
                 ref nodes,
-            } => nodes.get(test),
+            } => nodes.get(key),
             _ => None,
         }
     }
@@ -101,8 +99,6 @@ impl Node {
 }
 
 pub fn into_tree(collection: Vec<RawKV>) -> Node {
-    // Create the root namespace
-    println!("Creating nodes");
     let mut root_node = Node::Directory {
         key: "/".to_string(),
         nodes: HashMap::new(),

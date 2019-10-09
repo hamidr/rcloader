@@ -9,5 +9,6 @@ json-patch = "*"
 reqwest = "0.9.20"
 base64 = "0.10.1"
 itertools = "0.8.0"
+hocon = "0.3.0"
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }

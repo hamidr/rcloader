@@ -1,7 +1,34 @@
 use crate::node::Node;
+use crate::client::ResulT;
+use std::error::Error;
 use serde_json::Value;
 use serde::ser::{Serialize, SerializeMap, Serializer};
 use json_patch::merge;
+use hocon::HoconLoader;
+use std::fmt;
+
+#[derive(Debug)]
+struct MyError {
+    details: String
+}
+
+impl MyError {
+    fn new(msg: &str) -> MyError {
+        MyError{details: msg.to_string()}
+    }
+}
+
+impl fmt::Display for MyError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f,"{}",self.details)
+    }
+}
+
+impl Error for MyError {
+    fn description(&self) -> &str {
+        &self.details
+    }
+}
 
 struct WrapDire<'a, T> {
     name: &'a str,
@@ -46,20 +73,26 @@ fn make_json(node: &Node) -> Result<Value, serde_json::error::Error> {
     }
 }
 
-pub fn to_json(_node: &Node) -> String {
-    let strr =  make_json(_node).and_then(|n| serde_json::to_string_pretty(&n));
-    match strr {
-        Ok(x) => {
-            println!("{}", x);
-            x
-        },
-        Err(_) => {
-            unimplemented!("fsd")
-        }
+pub trait Printer {
+    fn to_string(&self, node: &Node) -> ResulT<String>;
+}
+
+pub struct ToJson;
+impl Printer for ToJson {
+    fn to_string(&self, node: &Node) -> ResulT<String> {
+        make_json(node).and_then(|n| serde_json::to_string_pretty(&n)).map_err(|e| e.into())
     }
 }
 
-pub fn to_hocon(_nodes: &Node) -> String {
-    println!("{:?}", _nodes); "".to_string()
+pub struct ToHocon;
+impl Printer for ToHocon { 
+    fn to_string(&self, node: &Node) -> ResulT<String> {
+        let s = ToJson.to_string(node)?;
+        let ss = s.as_str();
+        let loader: ResulT<_> = HoconLoader::new()
+            .load_str(ss).and_then(|l| l.hocon())
+            .map_err(|e| e.into());
+        loader?.as_string().ok_or(Box::new(MyError { details: "Can't convert the stupid json to string".to_string() }))
+    }
 }
 
