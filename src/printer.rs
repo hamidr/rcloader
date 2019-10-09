@@ -11,7 +11,7 @@ struct WrapDire<'a, T> {
 impl<'a, T> Serialize for WrapDire<'a, T> where T: Serialize {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: Serializer, T: Serialize
+        S: Serializer
     {
         let mut ser = serializer.serialize_map(None)?;
         ser.serialize_key(self.name)?;
@@ -19,23 +19,6 @@ impl<'a, T> Serialize for WrapDire<'a, T> where T: Serialize {
         ser.end()
     }
 }
-
-// struct WrapKV<'a> {
-//     name: &'a str,
-//     value: &'a str
-// }
-
-// impl<'a> Serialize for WrapKV<'a> {
-//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-//     where
-//         S: Serializer,
-//     {
-//         let mut ser = serializer.serialize_map(None)?;
-//         ser.serialize_key(self.name)?;
-//         ser.serialize_value(self.value)?;
-//         ser.end()
-//     }
-// }
 
 fn merge_jsons(nodes: &Vec<Value>) -> Value {
     let value = nodes.iter().fold(serde_json::Value::Null, |acc, n| {
