@@ -1,12 +1,6 @@
-use crate::client::{ConsulKV, RawKV, ResulT};
-use itertools::Itertools;
-use serde::Serialize;
-use std::cmp::Eq;
+use crate::client::RawKV;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
-use std::fs::File;
-use std::path::Path;
-
 
 #[derive(Eq, PartialEq, Hash, Debug)]
 pub struct Key(String);

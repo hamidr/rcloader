@@ -92,7 +92,7 @@ impl Printer for ToHocon {
         let loader: ResulT<_> = HoconLoader::new()
             .load_str(ss).and_then(|l| l.hocon())
             .map_err(|e| e.into());
-        loader?.as_string().ok_or(Box::new(MyError { details: "Can't convert the stupid json to string".to_string() }))
+        loader?.as_string().ok_or(Box::new(MyError::new("Can't convert the stupid json to string")))
     }
 }
 
