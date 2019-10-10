@@ -55,10 +55,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
     if args.len() != 5 {
         println!(
-"rcloader [url=http://127.0.0.1:8500] [namespace=capi-gateway] [file=out.txt] [json|hocon] \
-E.g.: rcloader http://127.0.0.1:8500 capi-gateway foo.txt hocon \
-cargo run http://127.0.0.1:8500 test foo.txt json
-");
+"rcloader [url=http://127.0.0.1:8500] [namespace=capi-gateway] [file=app.conf] [json] \
+E.g.: rcloader http://127.0.0.1:8500 capi-gateway app.conf json");
         ::std::process::exit(1);
     }
     let url = &args[1];
