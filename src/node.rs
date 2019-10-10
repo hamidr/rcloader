@@ -28,6 +28,14 @@ pub enum Node {
 }
 
 impl Node {
+    pub fn nodes(&self) -> Vec<&Node> {
+        match self {
+            Node::KeyValue{..} => vec!(self),
+            Node::Directory{nodes, ..} => {
+                nodes.values().collect()
+            }
+        }
+    }
     fn insert_key(nodes: &mut HashMap<Key, Node>, key: String, value: String) {
         match nodes.entry(Key(key.clone())) {
             Entry::Occupied(mut state) => {

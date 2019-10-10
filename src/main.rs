@@ -73,8 +73,9 @@ cargo run http://127.0.0.1:8500 test foo.txt json
     let node = into_tree(raw_kvs);
     let nodes = node.get(node::Key::new("services"))
                     .and_then(|n| n.get(node::Key::new(ns.as_str())))
+                    .map(|n| n.nodes())
                     .ok_or("wtf")?;
-    let content = prtr.to_string(&nodes)?;
+    let content = prtr.to_string(nodes)?;
     fs::write(_output, content)?;
     Ok(())
 }

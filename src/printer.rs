@@ -74,20 +74,23 @@ fn make_json(node: &Node) -> Result<Value, serde_json::error::Error> {
 }
 
 pub trait Printer {
-    fn to_string(&self, node: &Node) -> ResulT<String>;
+    fn to_string(&self, node: Vec<&Node>) -> ResulT<String>;
 }
 
 pub struct ToJson;
 impl Printer for ToJson {
-    fn to_string(&self, node: &Node) -> ResulT<String> {
-        make_json(node).and_then(|n| serde_json::to_string_pretty(&n)).map_err(|e| e.into())
+    fn to_string(&self, nodes: Vec<&Node>) -> ResulT<String> {
+        let jsons: Result<Vec<_>, _> = nodes.iter().map(|n| make_json(n)).collect();
+        let xs = jsons?;
+        let n = merge_jsons(&xs);
+        serde_json::to_string_pretty(&n).map_err(|e| e.into())
     }
 }
 
 pub struct ToHocon;
 impl Printer for ToHocon { 
-    fn to_string(&self, node: &Node) -> ResulT<String> {
-        let s = ToJson.to_string(node)?;
+    fn to_string(&self, nodes: Vec<&Node>) -> ResulT<String> {
+        let s = ToJson.to_string(nodes)?;
         let ss = s.as_str();
         let loader: ResulT<_> = HoconLoader::new()
             .load_str(ss).and_then(|l| l.hocon())
